@@ -42,8 +42,21 @@ temp/
 *.key
 *.pem
 secrets/
+*.token
+*.secret
+credentials.*
+account*.json
+holdings*.json
+portfolio*.json
+*_local.yaml
+*_local.yml
+*_local.json
 
 # Local analysis artifacts
 *.ipynb_checkpoints/
 
 # Large market data and generated outputs will be finalized after the data requirements chapter.
+raw_data/
+market_raw/
+analysis_tmp/
+temp_analysis/
