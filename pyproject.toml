@@ -1,0 +1,9 @@
+[project]
+name = "etf-investment"
+version = "0.1.0"
+description = "个人长期 ETF 投资辅助工具"
+requires-python = ">=3.11"
+
+[tool.unittest]
+start-directory = "tests"
+
