@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from calendar import monthrange
+from bisect import bisect_left
 from math import sqrt
 from statistics import median, stdev
 from typing import Sequence
@@ -66,6 +67,7 @@ def rolling_returns(bars: Sequence[DailyBar], years: int) -> list[float]:
     if years <= 0:
         raise ValueError("years 必须大于 0")
     result: list[float] = []
+    dates = [bar.trade_date for bar in bars]
     for start_index, start_bar in enumerate(bars):
         target_year = start_bar.trade_date.year + years
         target = date(
@@ -73,8 +75,8 @@ def rolling_returns(bars: Sequence[DailyBar], years: int) -> list[float]:
             start_bar.trade_date.month,
             min(start_bar.trade_date.day, monthrange(target_year, start_bar.trade_date.month)[1]),
         )
-        end_index = next((index for index in range(start_index + 1, len(bars)) if bars[index].trade_date >= target), None)
-        if end_index is not None:
+        end_index = bisect_left(dates, target, lo=start_index + 1)
+        if end_index < len(bars):
             result.append(bars[end_index].close / start_bar.close - 1)
     return result
 
