@@ -13,6 +13,8 @@ from .reporting import write_trace_report
 from .rules import RuleRegistry
 from .backtest import fixed_dca
 from dataclasses import asdict
+from datetime import date
+from .execution import ExecutionService
 from .storage import Database
 
 
@@ -52,6 +54,12 @@ def build_parser() -> argparse.ArgumentParser:
     trace_report.add_argument("path")
     rule_set = commands.add_parser("register-rules", help="登记一个版本化规则集 JSON")
     rule_set.add_argument("path")
+    save_plan = commands.add_parser("save-plan", help="保存用户确认的投资计划 JSON")
+    save_plan.add_argument("path")
+    daily_actions = commands.add_parser("daily-actions", help="输出当天已确认计划的行动 JSON")
+    daily_actions.add_argument("--date", dest="as_of", default=date.today().isoformat())
+    execution = commands.add_parser("record-execution", help="保存人工执行结果 JSON")
+    execution.add_argument("path")
     return parser
 
 
@@ -61,6 +69,7 @@ def main() -> int:
     catalog = CatalogService(database)
     market_data = MarketDataService(database)
     rules = RuleRegistry(database)
+    execution = ExecutionService(database)
     if args.command == "init-db":
         database.initialize()
         print(f"已初始化: {database.path}")
@@ -88,7 +97,24 @@ def main() -> int:
         print(f"已生成证据报告: {Path(args.path)}")
     elif args.command == "register-rules":
         print(f"已登记规则版本: {rules.register_json(args.path)}")
+    elif args.command == "save-plan":
+        plan = _read_json(args.path)
+        execution.save_plan(plan)
+        print(f"已保存投资计划: {plan['direction_key']}")
+    elif args.command == "daily-actions":
+        actions = execution.daily_actions(date.fromisoformat(args.as_of))
+        print(json.dumps({"data_date": args.as_of, "actions": actions, "message": "今日无需操作" if not actions else None}, ensure_ascii=False, indent=2))
+    elif args.command == "record-execution":
+        print(f"已保存执行记录: {execution.record_execution(_read_json(args.path))}")
     return 0
+
+
+def _read_json(path: str) -> dict[str, object]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        value = json.load(handle)
+    if not isinstance(value, dict):
+        raise ValueError("JSON 根节点必须为对象")
+    return value
 
 
 if __name__ == "__main__":

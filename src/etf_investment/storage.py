@@ -106,6 +106,49 @@ class Database:
 
                 CREATE INDEX IF NOT EXISTS idx_market_daily_series
                 ON market_daily(exchange, code, adjustment, trade_date);
+
+                CREATE TABLE IF NOT EXISTS investment_plan (
+                    direction_key TEXT PRIMARY KEY,
+                    exchange TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    strategy TEXT NOT NULL CHECK (strategy IN ('DCA', 'DCA_GRID', 'OBSERVE')),
+                    status TEXT NOT NULL CHECK (status IN ('ACTIVE', 'OBSERVE', 'STOP_ADDING')),
+                    base_amount REAL,
+                    frequency TEXT,
+                    next_execution_date TEXT,
+                    cash_reserve REAL NOT NULL DEFAULT 0,
+                    rule_version TEXT,
+                    note TEXT,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(exchange, code) REFERENCES etf_identity(exchange, code)
+                );
+
+                CREATE TABLE IF NOT EXISTS holding (
+                    account TEXT NOT NULL,
+                    exchange TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    quantity REAL NOT NULL CHECK (quantity >= 0),
+                    average_cost REAL,
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY(account, exchange, code),
+                    FOREIGN KEY(exchange, code) REFERENCES etf_identity(exchange, code)
+                );
+
+                CREATE TABLE IF NOT EXISTS execution_record (
+                    execution_id TEXT PRIMARY KEY,
+                    plan_direction_key TEXT,
+                    account TEXT NOT NULL,
+                    exchange TEXT NOT NULL,
+                    code TEXT NOT NULL,
+                    executed_date TEXT NOT NULL,
+                    side TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+                    quantity REAL,
+                    amount REAL,
+                    price REAL,
+                    note TEXT,
+                    recorded_at TEXT NOT NULL,
+                    FOREIGN KEY(plan_direction_key) REFERENCES investment_plan(direction_key)
+                );
                 """
             )
             connection.execute(

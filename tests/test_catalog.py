@@ -11,6 +11,7 @@ from etf_investment.market_data import DailyBar
 from etf_investment.metrics import summarize
 from etf_investment.reporting import render_trace_markdown
 from etf_investment.backtest import fixed_dca
+from etf_investment.execution import ExecutionService
 from etf_investment.storage import Database
 
 
@@ -105,3 +106,24 @@ class CatalogServiceTests(unittest.TestCase):
         self.assertEqual(result.total_invested, 200)
         self.assertAlmostEqual(result.final_assets, 225)
         self.assertEqual(result.cash_reserve, 50)
+
+    def test_daily_action_only_uses_confirmed_active_plan(self) -> None:
+        self.service.import_csv(self._write_csv([{
+            "exchange": "SSE", "code": "510300", "name": "沪深300ETF",
+            "tracking_target": "沪深300", "asset_type": "宽基", "passive_tracking": "true",
+            "source_name": "测试", "source_as_of": "2026-08-29",
+        }]))
+        execution = ExecutionService(self.service.database)
+        execution.save_plan({
+            "direction_key": "沪深300", "exchange": "SSE", "code": "510300", "strategy": "DCA",
+            "status": "ACTIVE", "base_amount": 1000, "frequency": "monthly",
+            "next_execution_date": "2026-08-28", "rule_version": "plan-v1",
+        })
+        actions = execution.daily_actions(date(2026, 8, 29))
+        self.assertEqual(actions[0]["action"], "BUY")
+        self.assertEqual(actions[0]["amount"], 1000)
+        execution.record_execution({
+            "plan_direction_key": "沪深300", "account": "模拟账户", "exchange": "SSE", "code": "510300",
+            "executed_date": "2026-08-29", "side": "BUY", "amount": 1000,
+        })
+        self.assertEqual(execution.daily_actions(date(2026, 8, 29)), [])
